@@ -6,26 +6,26 @@
 
 ## Executive Summary
 
-This project builds and rigorously tests two well-known equity factors — **12-month momentum** and **low-volatility** — on the full S&P 500 universe (503 constituents) from January 2015 through July 2026. The goal was not simply to backtest a strategy, but to apply the statistical discipline of factor research: cross-sectional ranking, Information Coefficient (IC) analysis, sub-period robustness checks, and transaction cost estimation.
+This project builds and rigorously tests two well-known equity factors - **12-month momentum** and **low-volatility** - on the full S&P 500 universe (503 constituents) from January 2015 through July 2026. The goal was not simply to backtest a strategy, but to apply the statistical discipline of factor research: cross-sectional ranking, Information Coefficient (IC) analysis, sub-period robustness checks, and transaction cost estimation.
 
 **Headline findings:**
 
-- **Momentum shows no reliable predictive power** in this sample. The mean Information Coefficient is essentially zero (IC = -0.003, t-stat = 0.34), and this conclusion strengthens — rather than weakens — as the universe grows from a small subset to the full 503 stocks, which is a strong signal that smaller-sample "profits" were driven by idiosyncratic noise rather than a genuine effect.
+- **Momentum shows no reliable predictive power** in this sample. The mean Information Coefficient is essentially zero (IC = -0.003, t-stat = 0.34), and this conclusion strengthens - rather than weakens - as the universe grows from a small subset to the full 503 stocks, which is a strong signal that smaller-sample "profits" were driven by idiosyncratic noise rather than a genuine effect.
 - **Low-volatility shows a statistically significant *reversed* anomaly.** Contrary to the traditional low-volatility anomaly (which predicts low-vol stocks *outperform*), high-volatility stocks in this sample **outperformed** low-volatility stocks by a wide and statistically significant margin (IC = -0.033, t-stat = -2.79), consistent in direction across all three market regimes tested, and strongest during the 2023–2026 AI-driven rally (t-stat = -2.49).
 - After accounting for realistic transaction costs, momentum's already-marginal gross return is reduced by roughly a third, while low-volatility's negative return is barely affected (turnover costs are a rounding error next to the size of the loss).
 
-The most interesting part of this project was methodological: an early version of the pipeline used a fixed 50-stock subset for fast iteration, which — because the ticker list is alphabetically sorted — happened to oversample mega-cap technology names (AAPL, ADBE, AMD, AMZN, ANET, GOOGL). This produced a *dramatically* inflated and misleading picture of both factors. Catching, diagnosing, and correcting this bias (first via random sampling, then via the full universe) is documented below, because it materially changed the conclusions and is arguably the most important "finding" of the whole exercise.
+The most interesting part of this project was methodological: an early version of the pipeline used a fixed 50-stock subset for fast iteration, which - because the ticker list is alphabetically sorted - happened to oversample mega-cap technology names (AAPL, ADBE, AMD, AMZN, ANET, GOOGL). This produced a *dramatically* inflated and misleading picture of both factors. Catching, diagnosing, and correcting this bias (first via random sampling, then via the full universe) is documented below, because it materially changed the conclusions and is arguably the most important "finding" of the whole exercise.
 
 ---
 
 ## 1. Motivation
 
-Coming from a data science background, I wanted a project that would translate cleanly to the language of quantitative equity research — one that exercises statistical inference, cross-sectional analysis, and risk-aware thinking rather than a single "my model predicts price go up" narrative. Factor investing is a natural fit: it is the vocabulary used by quant research desks and asset managers, it rewards rigorous validation over headline returns, and it forces an explicit conversation about *why* a signal might or might not work — rather than just whether backtested equity curves go up and to the right.
+Coming from a data science background, I wanted a project that would translate cleanly to the language of quantitative equity research - one that exercises statistical inference, cross-sectional analysis, and risk-aware thinking rather than a single "my model predicts price go up" narrative. Factor investing is a natural fit: it is the vocabulary used by quant research desks and asset managers, it rewards rigorous validation over headline returns, and it forces an explicit conversation about *why* a signal might or might not work - rather than just whether backtested equity curves go up and to the right.
 
 Two factors were chosen for their contrasting character:
 
-- **Momentum** — a behavioral/trend-following factor, historically one of the most robust anomalies in the academic literature (Jegadeesh & Titman, 1993), but also known to suffer periodic, sharp crashes.
-- **Low-volatility** — a "defensive" factor, motivated by the empirical observation that low-risk stocks have historically delivered surprisingly competitive risk-adjusted (and sometimes absolute) returns, in tension with classical asset pricing theory (Ang et al., 2006; Frazzini & Pedersen, 2014).
+- **Momentum** - a behavioral/trend-following factor, historically one of the most robust anomalies in the academic literature (Jegadeesh & Titman, 1993), but also known to suffer periodic, sharp crashes.
+- **Low-volatility** - a "defensive" factor, motivated by the empirical observation that low-risk stocks have historically delivered surprisingly competitive risk-adjusted (and sometimes absolute) returns, in tension with classical asset pricing theory (Ang et al., 2006; Frazzini & Pedersen, 2014).
 
 ---
 
@@ -36,7 +36,7 @@ Two factors were chosen for their contrasting character:
 - **Universe:** All 503 current S&P 500 constituents (ticker list sourced from a maintained GitHub dataset of S&P 500 constituents).
 - **Price data:** Daily adjusted close prices from Yahoo Finance via `yfinance`, auto-adjusted for splits and dividends.
 - **Period:** January 2, 2015 – July 2, 2026 (~11.5 years), spanning three distinct market regimes: the pre-COVID bull market (2015–2019), the COVID crash and subsequent rate-hiking cycle (2020–2022), and the AI-driven recovery/rally (2023–2026).
-- **Coverage:** 501 of 503 tickers successfully downloaded (2 failed — `ADI` and `ANET` — due to a transient data provider issue on that run; not excluded for any substantive reason). After requiring sufficient trailing history for factor construction, the average active universe is **~484 stocks per month**.
+- **Coverage:** 501 of 503 tickers successfully downloaded (2 failed - `ADI` and `ANET` - due to a transient data provider issue on that run; not excluded for any substantive reason). After requiring sufficient trailing history for factor construction, the average active universe is **~484 stocks per month**.
 
 ### 2.2 Factor Construction
 
@@ -45,7 +45,7 @@ Two factors were chosen for their contrasting character:
 | **Momentum (12-1)** | Cumulative return over the trailing 12 months, **skipping the most recent month** | The 1-month skip is standard academic practice (Jegadeesh & Titman, 1993) to avoid contaminating the signal with short-term reversal effects |
 | **Low-Volatility** | Trailing 60-trading-day standard deviation of daily returns, **negated** so that a higher score always means "better" (i.e., lower realized volatility) | Consistent sign convention makes cross-factor comparison and ranking straightforward |
 
-Both factors are computed at each month-end and then converted to a **cross-sectional percentile rank** (0 = weakest, 1 = strongest) *within that month*, so that a stock is only ever compared against its peers at the same point in time — never against its own history.
+Both factors are computed at each month-end and then converted to a **cross-sectional percentile rank** (0 = weakest, 1 = strongest) *within that month*, so that a stock is only ever compared against its peers at the same point in time - never against its own history.
 
 ### 2.3 Portfolio Construction & Validation
 
@@ -69,7 +69,7 @@ Statistical significance of the long-short return series is assessed via a stand
 
 Before presenting the final results, it's worth documenting an issue that arose during development, because it substantially changed the conclusions and is a good illustration of the kind of scrutiny factor research requires.
 
-For fast iteration, an early version of the pipeline used a 50-stock subset rather than the full universe. The subset was selected as `ticker_list[:50]` — the first 50 tickers from an **alphabetically sorted** list. This is not a random sample: because company names beginning with "A" happen to include several of the largest technology/AI winners of the sample period (**AAPL, ADBE, AMD, AMZN, ANET, GOOGL/GOOG**), this subset was structurally overweighted toward exactly the stocks that drove much of the market's return in 2023–2026.
+For fast iteration, an early version of the pipeline used a 50-stock subset rather than the full universe. The subset was selected as `ticker_list[:50]` - the first 50 tickers from an **alphabetically sorted** list. This is not a random sample: because company names beginning with "A" happen to include several of the largest technology/AI winners of the sample period (**AAPL, ADBE, AMD, AMZN, ANET, GOOGL/GOOG**), this subset was structurally overweighted toward exactly the stocks that drove much of the market's return in 2023–2026.
 
 The effect on the results was dramatic:
 
@@ -82,7 +82,7 @@ The effect on the results was dramatic:
 | Low-vol t-stat | **-3.00** | -1.44 | **-2.79** |
 | Low-vol cumulative return | -93.2% | -79.5% | **-86.7%** |
 
-Two things stand out. First, **momentum's apparent profitability collapsed almost entirely** as the sample grew from 50 (alphabetically biased) stocks to the full 503 — the cumulative long-short return fell from +62% to +4.5%, and the t-statistic fell to a fraction of the already-insignificant starting point. This is close to a textbook illustration of how a small, non-random quintile (~10 stocks per bucket at n=50) can produce return patterns that look meaningful but are really driven by a handful of idiosyncratic winners.
+Two things stand out. First, **momentum's apparent profitability collapsed almost entirely** as the sample grew from 50 (alphabetically biased) stocks to the full 503 - the cumulative long-short return fell from +62% to +4.5%, and the t-statistic fell to a fraction of the already-insignificant starting point. This is close to a textbook illustration of how a small, non-random quintile (~10 stocks per bucket at n=50) can produce return patterns that look meaningful but are really driven by a handful of idiosyncratic winners.
 
 Second, and more interesting: **the low-volatility reversal survived the correction.** Even after moving to a genuinely random sample and then the full universe, high-volatility stocks continued to outperform low-volatility stocks by a large, statistically significant margin. This gives much more confidence that this is a real pattern in the data for this period, rather than an artifact of which 50 stocks happened to be sampled.
 
@@ -116,7 +116,7 @@ Across the full 503-stock universe:
 | 2020–2022 (COVID + Rate Hike) | -0.017 | -0.54 |
 | 2023–2026 (Recovery/AI Rally) | +0.025 | 1.59 |
 
-*Verdict from the pipeline: inconsistent — the sign of the IC flips between regimes.* The most recent period shows the strongest (though still not conventionally significant) signal, which may be worth revisiting with more data as the current market regime matures, but it would be premature to call this a reliable edge.
+*Verdict from the pipeline: inconsistent - the sign of the IC flips between regimes.* The most recent period shows the strongest (though still not conventionally significant) signal, which may be worth revisiting with more data as the current market regime matures, but it would be premature to call this a reliable edge.
 
 ### 4.2 Low-Volatility
 
@@ -132,7 +132,7 @@ Across the full 503-stock universe:
 | t-statistic | **-2.79** |
 | Cumulative return (11.5 years) | -86.7% |
 
-**Interpretation:** this is the more statistically interesting — and more cautionary — result of the two. The negative sign means that, in this sample, being long the *most volatile* stocks and short the *least volatile* stocks was profitable; the "low-vol premium" documented in much of the asset pricing literature is inverted here. A t-statistic of -2.79 clears the conventional significance bar comfortably (roughly p ≈ 0.006), and 44.8% of months showing positive IC (i.e., a majority showing negative IC in the "expected" direction) reinforces that this is not a fluke driven by a few extreme months.
+**Interpretation:** this is the more statistically interesting - and more cautionary - result of the two. The negative sign means that, in this sample, being long the *most volatile* stocks and short the *least volatile* stocks was profitable; the "low-vol premium" documented in much of the asset pricing literature is inverted here. A t-statistic of -2.79 clears the conventional significance bar comfortably (roughly p ≈ 0.006), and 44.8% of months showing positive IC (i.e., a majority showing negative IC in the "expected" direction) reinforces that this is not a fluke driven by a few extreme months.
 
 **Sub-period breakdown:**
 
@@ -142,9 +142,9 @@ Across the full 503-stock universe:
 | 2020–2022 (COVID + Rate Hike) | -0.017 | -1.07 |
 | 2023–2026 (Recovery/AI Rally) | -0.044 | **-2.49** |
 
-*Verdict from the pipeline: consistent — the sign of the IC is negative in all three regimes.* The effect is strongest in the most recent period, which is where the statistical evidence (large *n*, largest |t-stat|) is also strongest.
+*Verdict from the pipeline: consistent - the sign of the IC is negative in all three regimes.* The effect is strongest in the most recent period, which is where the statistical evidence (large *n*, largest |t-stat|) is also strongest.
 
-**A plausible narrative, held loosely:** the sample period is dominated by an extended growth/technology-led bull market, and especially by the 2023–2026 AI rally. Mega-cap growth and semiconductor/AI infrastructure names — which tend to run at higher realized volatility than defensive sectors like utilities and consumer staples — delivered outsized returns during exactly this window. A "long low-vol, short high-vol" strategy would have been short precisely the stocks driving the market's return. This is offered as a plausible regime-specific explanation, not a claim that the low-volatility anomaly is permanently "dead" — a different sample period, or a version of the factor that neutralizes sector and beta exposure, could show a different picture.
+**A plausible narrative, held loosely:** the sample period is dominated by an extended growth/technology-led bull market, and especially by the 2023–2026 AI rally. Mega-cap growth and semiconductor/AI infrastructure names - which tend to run at higher realized volatility than defensive sectors like utilities and consumer staples - delivered outsized returns during exactly this window. A "long low-vol, short high-vol" strategy would have been short precisely the stocks driving the market's return. This is offered as a plausible regime-specific explanation, not a claim that the low-volatility anomaly is permanently "dead" - a different sample period, or a version of the factor that neutralizes sector and beta exposure, could show a different picture.
 
 ### 4.3 Side-by-Side Comparison
 
@@ -163,9 +163,9 @@ A factor that looks attractive on paper can be far less attractive once realisti
 | Momentum | 22.0% | 0.044% | 0.130% | 0.086% | 33.8% |
 | Low-Vol | 21.5% | 0.043% | -1.418% | -1.461% | 3.0%\* |
 
-\*For low-vol, costs make an already-negative return slightly *more* negative; the "% lost to costs" figure is not meaningful in the same way as for a profitable strategy — it is included for completeness.
+\*For low-vol, costs make an already-negative return slightly *more* negative; the "% lost to costs" figure is not meaningful in the same way as for a profitable strategy - it is included for completeness.
 
-**Interpretation:** momentum's turnover (22% of the book rebalanced per month) is high enough that transaction costs erode roughly a third of an already marginal, statistically insignificant gross return — reinforcing that this factor is not a viable standalone strategy in this sample. For low-volatility, transaction costs are a rounding error relative to the size of the loss; costs are not the reason this factor underperformed.
+**Interpretation:** momentum's turnover (22% of the book rebalanced per month) is high enough that transaction costs erode roughly a third of an already marginal, statistically insignificant gross return - reinforcing that this factor is not a viable standalone strategy in this sample. For low-volatility, transaction costs are a rounding error relative to the size of the loss; costs are not the reason this factor underperformed.
 
 ---
 
@@ -183,7 +183,7 @@ This project is a methodologically careful exercise, but it is not a production-
 
 ## 7. Conclusion & Future Work
 
-This project set out to build a factor research pipeline with the statistical rigor expected in quantitative equity research, rather than a single backtest optimized to look good. The most valuable outcome was arguably not either factor's headline number, but the demonstrated process: constructing factors correctly, validating with IC and long-short portfolios rather than raw returns alone, checking sub-period stability, accounting for costs — and, along the way, catching and correcting a sampling bias that would otherwise have produced a badly misleading conclusion.
+This project set out to build a factor research pipeline with the statistical rigor expected in quantitative equity research, rather than a single backtest optimized to look good. The most valuable outcome was arguably not either factor's headline number, but the demonstrated process: constructing factors correctly, validating with IC and long-short portfolios rather than raw returns alone, checking sub-period stability, accounting for costs - and, along the way, catching and correcting a sampling bias that would otherwise have produced a badly misleading conclusion.
 
 **Natural extensions:**
 
