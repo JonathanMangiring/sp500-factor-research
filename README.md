@@ -6,26 +6,26 @@
 
 ## Ringkasan Eksekutif
 
-Proyek ini membangun dan menguji secara ketat dua faktor ekuitas yang terkenal — **momentum 12 bulan** dan **low-volatility** — pada keseluruhan *universe* S&P 500 (503 konstituen) dari Januari 2015 hingga Juli 2026. Tujuannya bukan sekadar untuk melakukan *backtest* strategi, melainkan untuk menerapkan disiplin statistik dari riset faktor: pemeringkatan *cross-sectional*, analisis *Information Coefficient* (IC), uji ketahanan sub-periode, dan estimasi biaya transaksi.
+Proyek ini membangun dan menguji secara ketat dua faktor ekuitas yang terkenal - **momentum 12 bulan** dan **low-volatility** - pada keseluruhan *universe* S&P 500 (503 konstituen) dari Januari 2015 hingga Juli 2026. Tujuannya bukan sekadar untuk melakukan *backtest* strategi, melainkan untuk menerapkan disiplin statistik dari riset faktor: pemeringkatan *cross-sectional*, analisis *Information Coefficient* (IC), uji ketahanan sub-periode, dan estimasi biaya transaksi.
 
 **Temuan Utama:**
 
-- **Momentum tidak menunjukkan kekuatan prediktif yang dapat diandalkan** pada sampel ini. Rata-rata *Information Coefficient* pada dasarnya nol (IC = -0.003, t-stat = 0.34), dan kesimpulan ini semakin kuat — bukan melemah — ketika *universe* diperbesar dari subset kecil menjadi 503 saham penuh. Ini merupakan sinyal kuat bahwa "keuntungan" pada sampel kecil didorong oleh kebisingan idiosinkratik (*idiosyncratic noise*) daripada efek yang sebenarnya.
+- **Momentum tidak menunjukkan kekuatan prediktif yang dapat diandalkan** pada sampel ini. Rata-rata *Information Coefficient* pada dasarnya nol (IC = -0.003, t-stat = 0.34), dan kesimpulan ini semakin kuat - bukan melemah - ketika *universe* diperbesar dari subset kecil menjadi 503 saham penuh. Ini merupakan sinyal kuat bahwa "keuntungan" pada sampel kecil didorong oleh kebisingan idiosinkratik (*idiosyncratic noise*) daripada efek yang sebenarnya.
 - **Low-volatility menunjukkan anomali terbalik (*reversed*) yang signifikan secara statistik.** Bertentangan dengan anomali *low-volatility* tradisional (yang memprediksi bahwa saham *low-vol* akan mengungguli pasar), saham-saham dengan volatilitas tinggi pada sampel ini justru **mengungguli** saham-saham dengan volatilitas rendah dengan margin yang lebar dan signifikan secara statistik (IC = -0.033, t-stat = -2.79). Hasil ini konsisten secara arah di seluruh ketiga rezim pasar yang diuji, dan paling kuat selama reli yang didorong oleh AI pada 2023–2026 (t-stat = -2.49).
 - Setelah memperhitungkan biaya transaksi yang realistis, imbal hasil kotor (*gross return*) momentum yang sudah marjinal berkurang sekitar sepertiganya, sementara imbal hasil negatif *low-volatility* hampir tidak terpengaruh (biaya *turnover* hanyalah pembulatan angka dibandingkan dengan besarnya kerugian).
 
-Bagian paling menarik dari proyek ini adalah metodologinya: versi awal *pipeline* menggunakan subset tetap 50 saham untuk iterasi cepat, yang — karena daftar *ticker* diurutkan berdasarkan alfabet — secara kebetulan terlalu banyak mengambil sampel nama-nama teknologi berkapitalisasi sangat besar (AAPL, ADBE, AMD, AMZN, ANET, GOOGL). Hal ini menghasilkan gambaran yang **sangat** terinflasi dan menyesatkan untuk kedua faktor. Menangkap, mendiagnosis, dan memperbaiki bias ini (pertama melalui sampel acak, kemudian melalui *universe* penuh) didokumentasikan di bawah ini, karena hal tersebut secara material mengubah kesimpulan dan bisa dibilang merupakan "temuan" terpenting dari keseluruhan latihan ini.
+Bagian paling menarik dari proyek ini adalah metodologinya: versi awal *pipeline* menggunakan subset tetap 50 saham untuk iterasi cepat, yang - karena daftar *ticker* diurutkan berdasarkan alfabet - secara kebetulan terlalu banyak mengambil sampel nama-nama teknologi berkapitalisasi sangat besar (AAPL, ADBE, AMD, AMZN, ANET, GOOGL). Hal ini menghasilkan gambaran yang **sangat** terinflasi dan menyesatkan untuk kedua faktor. Menangkap, mendiagnosis, dan memperbaiki bias ini (pertama melalui sampel acak, kemudian melalui *universe* penuh) didokumentasikan di bawah ini, karena hal tersebut secara material mengubah kesimpulan dan bisa dibilang merupakan "temuan" terpenting dari keseluruhan latihan ini.
 
 ---
 
 ## 1. Motivasi
 
-Berasal dari latar belakang *data science*, saya menginginkan proyek yang dapat diterjemahkan dengan jelas ke dalam bahasa *quantitative equity research* — proyek yang melatih inferensi statistik, analisis *cross-sectional*, dan pemikiran sadar risiko dibandingkan sekadar narasi "model saya memprediksi harga akan naik". Investasi faktor sangat cocok: ini adalah kosakata yang digunakan oleh *quant research desks* dan *asset managers*, ia menghargai validasi yang ketat dibandingkan sekadar angka imbal hasil utama (*headline returns*), dan memaksa adanya diskusi eksplisit tentang **mengapa** suatu sinyal mungkin berhasil atau tidak — bukan hanya sekadar apakah kurva ekuitas hasil *backtest* naik ke kanan atas.
+Berasal dari latar belakang *data science*, saya menginginkan proyek yang dapat diterjemahkan dengan jelas ke dalam bahasa *quantitative equity research* - proyek yang melatih inferensi statistik, analisis *cross-sectional*, dan pemikiran sadar risiko dibandingkan sekadar narasi "model saya memprediksi harga akan naik". Investasi faktor sangat cocok: ini adalah kosakata yang digunakan oleh *quant research desks* dan *asset managers*, ia menghargai validasi yang ketat dibandingkan sekadar angka imbal hasil utama (*headline returns*), dan memaksa adanya diskusi eksplisit tentang **mengapa** suatu sinyal mungkin berhasil atau tidak - bukan hanya sekadar apakah kurva ekuitas hasil *backtest* naik ke kanan atas.
 
 Dua faktor dipilih karena karakternya yang kontras:
 
-- **Momentum** — faktor perilaku/*trend-following*, secara historis merupakan salah satu anomali paling kuat dalam literatur akademis (Jegadeesh & Titman, 1993), tetapi juga diketahui sering mengalami *crash* tajam secara periodik.
-- **Low-volatility** — faktor "defensif", didorong oleh pengamatan empiris bahwa saham berisiko rendah secara historis memberikan pengembalian yang disesuaikan dengan risiko (dan terkadang absolut) yang secara mengejutkan kompetitif, yang bertentangan dengan teori penetapan harga aset klasik (Ang et al., 2006; Frazzini & Pedersen, 2014).
+- **Momentum** - faktor perilaku/*trend-following*, secara historis merupakan salah satu anomali paling kuat dalam literatur akademis (Jegadeesh & Titman, 1993), tetapi juga diketahui sering mengalami *crash* tajam secara periodik.
+- **Low-volatility** - faktor "defensif", didorong oleh pengamatan empiris bahwa saham berisiko rendah secara historis memberikan pengembalian yang disesuaikan dengan risiko (dan terkadang absolut) yang secara mengejutkan kompetitif, yang bertentangan dengan teori penetapan harga aset klasik (Ang et al., 2006; Frazzini & Pedersen, 2014).
 
 ---
 
@@ -36,7 +36,7 @@ Dua faktor dipilih karena karakternya yang kontras:
 - **Universe:** Seluruh 503 konstituen S&P 500 saat ini (daftar *ticker* bersumber dari dataset GitHub yang diperbarui dari konstituen S&P 500).
 - **Data Harga:** Harga penutupan yang disesuaikan (*adjusted close prices*) harian dari Yahoo Finance melalui `yfinance`, disesuaikan otomatis untuk *splits* dan dividen.
 - **Periode:** 2 Januari 2015 – 2 Juli 2026 (~11,5 tahun), mencakup tiga rezim pasar yang berbeda: *bull market* pra-COVID (2015–2019), *crash* COVID dan siklus kenaikan suku bunga berikutnya (2020–2022), dan pemulihan/reli yang didorong oleh AI (2023–2026).
-- **Cakupan:** 501 dari 503 *ticker* berhasil diunduh (2 gagal — `ADI` dan `ANET` — karena masalah penyedia data yang bersifat sementara pada saat diunduh; bukan dikecualikan karena alasan substantif). Setelah mensyaratkan riwayat masa lalu yang cukup untuk konstruksi faktor, rata-rata *universe* aktif adalah **~484 saham per bulan**.
+- **Cakupan:** 501 dari 503 *ticker* berhasil diunduh (2 gagal - `ADI` dan `ANET` - karena masalah penyedia data yang bersifat sementara pada saat diunduh; bukan dikecualikan karena alasan substantif). Setelah mensyaratkan riwayat masa lalu yang cukup untuk konstruksi faktor, rata-rata *universe* aktif adalah **~484 saham per bulan**.
 
 ### 2.2 Konstruksi Faktor
 
@@ -45,7 +45,7 @@ Dua faktor dipilih karena karakternya yang kontras:
 | **Momentum (12-1)** | Imbal hasil kumulatif selama 12 bulan terakhir, **melewati bulan paling terakhir** | Melompati 1 bulan adalah praktik akademis standar (Jegadeesh & Titman, 1993) untuk menghindari kontaminasi sinyal dari efek pembalikan jangka pendek (*short-term reversal*) |
 | **Low-Volatility** | Standar deviasi pergerakan harga 60 hari perdagangan terakhir, **dinegasikan** sehingga skor yang lebih tinggi selalu berarti "lebih baik" (yaitu, volatilitas yang direalisasikan lebih rendah) | Konvensi tanda yang konsisten membuat perbandingan antar faktor dan pemeringkatan menjadi mudah |
 
-Kedua faktor dihitung pada setiap akhir bulan dan kemudian diubah menjadi **peringkat persentil cross-sectional** (0 = terlemah, 1 = terkuat) *di dalam bulan tersebut*, sehingga suatu saham hanya akan dibandingkan dengan rekan-rekannya pada titik waktu yang sama — tidak pernah dengan sejarahnya sendiri.
+Kedua faktor dihitung pada setiap akhir bulan dan kemudian diubah menjadi **peringkat persentil cross-sectional** (0 = terlemah, 1 = terkuat) *di dalam bulan tersebut*, sehingga suatu saham hanya akan dibandingkan dengan rekan-rekannya pada titik waktu yang sama - tidak pernah dengan sejarahnya sendiri.
 
 ### 2.3 Konstruksi Portofolio & Validasi
 
@@ -69,7 +69,7 @@ Signifikansi statistik dari seri imbal hasil *long-short* dinilai melalui t-stat
 
 Sebelum menyajikan hasil akhir, perlu didokumentasikan masalah yang muncul selama pengembangan, karena masalah ini secara substansial mengubah kesimpulan dan merupakan ilustrasi yang baik dari jenis pengawasan yang dibutuhkan dalam riset faktor.
 
-Untuk iterasi cepat, versi awal dari *pipeline* menggunakan subset 50 saham alih-alih seluruh *universe*. Subset dipilih sebagai `ticker_list[:50]` — 50 *ticker* pertama dari daftar yang **diurutkan berdasarkan alfabet**. Ini bukanlah sampel acak: karena nama perusahaan yang berawalan huruf "A" kebetulan mencakup beberapa pemenang teknologi/AI terbesar dari periode sampel (**AAPL, ADBE, AMD, AMZN, ANET, GOOGL/GOOG**), subset ini secara struktural kelebihan bobot pada saham-saham yang mendorong sebagian besar pengembalian pasar di 2023–2026.
+Untuk iterasi cepat, versi awal dari *pipeline* menggunakan subset 50 saham alih-alih seluruh *universe*. Subset dipilih sebagai `ticker_list[:50]` - 50 *ticker* pertama dari daftar yang **diurutkan berdasarkan alfabet**. Ini bukanlah sampel acak: karena nama perusahaan yang berawalan huruf "A" kebetulan mencakup beberapa pemenang teknologi/AI terbesar dari periode sampel (**AAPL, ADBE, AMD, AMZN, ANET, GOOGL/GOOG**), subset ini secara struktural kelebihan bobot pada saham-saham yang mendorong sebagian besar pengembalian pasar di 2023–2026.
 
 Efeknya terhadap hasil sangat dramatis:
 
@@ -82,7 +82,7 @@ Efeknya terhadap hasil sangat dramatis:
 | Low-vol t-stat | **-3.00** | -1.44 | **-2.79** |
 | Pengembalian Kumulatif Low-vol | -93.2% | -79.5% | **-86.7%** |
 
-Dua hal menonjol. Pertama, **keuntungan nyata momentum runtuh hampir seluruhnya** ketika sampel membesar dari 50 saham (bias alfabetis) ke seluruh 503 saham — pengembalian kumulatif *long-short* turun dari +62% menjadi +4.5%, dan nilai t-statistik turun ke sebagian kecil dari titik awal yang sudah tidak signifikan. Ini adalah ilustrasi buku teks tentang bagaimana kuintil kecil yang tidak acak (~10 saham per keranjang pada n=50) dapat menghasilkan pola pengembalian yang terlihat bermakna namun sebenarnya hanya didorong oleh segelintir pemenang idiosinkratik.
+Dua hal menonjol. Pertama, **keuntungan nyata momentum runtuh hampir seluruhnya** ketika sampel membesar dari 50 saham (bias alfabetis) ke seluruh 503 saham - pengembalian kumulatif *long-short* turun dari +62% menjadi +4.5%, dan nilai t-statistik turun ke sebagian kecil dari titik awal yang sudah tidak signifikan. Ini adalah ilustrasi buku teks tentang bagaimana kuintil kecil yang tidak acak (~10 saham per keranjang pada n=50) dapat menghasilkan pola pengembalian yang terlihat bermakna namun sebenarnya hanya didorong oleh segelintir pemenang idiosinkratik.
 
 Kedua, dan yang lebih menarik: **pembalikan low-volatility bertahan dari koreksi tersebut.** Bahkan setelah beralih ke sampel acak yang asli dan kemudian ke *universe* penuh, saham dengan volatilitas tinggi terus mengungguli saham dengan volatilitas rendah dengan margin yang besar dan signifikan secara statistik. Hal ini memberikan kepercayaan yang jauh lebih besar bahwa ini adalah pola nyata dalam data untuk periode tersebut, bukan sekadar artifak dari 50 saham mana yang kebetulan diambil sebagai sampel.
 
@@ -116,7 +116,7 @@ Di seluruh keseluruhan universe 503 saham:
 | 2020–2022 (COVID + Rate Hike) | -0.017 | -0.54 |
 | 2023–2026 (Recovery/AI Rally) | +0.025 | 1.59 |
 
-*Keputusan dari pipeline: tidak konsisten — tanda IC berbalik di antara rezim.* Periode terakhir menunjukkan sinyal terkuat (meskipun masih belum signifikan secara konvensional), yang mungkin patut ditinjau kembali dengan lebih banyak data seiring berjalannya rezim pasar saat ini, namun masih terlalu dini untuk menyebut ini sebagai keunggulan yang dapat diandalkan.
+*Keputusan dari pipeline: tidak konsisten - tanda IC berbalik di antara rezim.* Periode terakhir menunjukkan sinyal terkuat (meskipun masih belum signifikan secara konvensional), yang mungkin patut ditinjau kembali dengan lebih banyak data seiring berjalannya rezim pasar saat ini, namun masih terlalu dini untuk menyebut ini sebagai keunggulan yang dapat diandalkan.
 
 ### 4.2 Low-Volatility
 
@@ -132,7 +132,7 @@ Di seluruh keseluruhan universe 503 saham:
 | t-statistic | **-2.79** |
 | Pengembalian Kumulatif (11.5 tahun) | -86.7% |
 
-**Interpretasi:** ini adalah hasil yang lebih menarik secara statistik — dan lebih merupakan peringatan — dari kedua faktor tersebut. Tanda negatif berarti, pada sampel ini, memiliki posisi *long* di saham yang **paling volatil** dan *short* di saham yang **paling tidak volatil** menguntungkan; "premium low-vol" yang didokumentasikan dalam banyak literatur penetapan harga aset berbalik di sini. Sebuah t-statistik sebesar -2.79 dengan nyaman melewati batas signifikansi konvensional (sekitar p ≈ 0.006), dan 44.8% bulan menunjukkan IC positif (yaitu, mayoritas menunjukkan IC negatif dalam arah yang "diharapkan") memperkuat bahwa ini bukan kebetulan yang didorong oleh beberapa bulan ekstrem.
+**Interpretasi:** ini adalah hasil yang lebih menarik secara statistik - dan lebih merupakan peringatan - dari kedua faktor tersebut. Tanda negatif berarti, pada sampel ini, memiliki posisi *long* di saham yang **paling volatil** dan *short* di saham yang **paling tidak volatil** menguntungkan; "premium low-vol" yang didokumentasikan dalam banyak literatur penetapan harga aset berbalik di sini. Sebuah t-statistik sebesar -2.79 dengan nyaman melewati batas signifikansi konvensional (sekitar p ≈ 0.006), dan 44.8% bulan menunjukkan IC positif (yaitu, mayoritas menunjukkan IC negatif dalam arah yang "diharapkan") memperkuat bahwa ini bukan kebetulan yang didorong oleh beberapa bulan ekstrem.
 
 **Rincian sub-periode:**
 
@@ -142,9 +142,9 @@ Di seluruh keseluruhan universe 503 saham:
 | 2020–2022 (COVID + Rate Hike) | -0.017 | -1.07 |
 | 2023–2026 (Recovery/AI Rally) | -0.044 | **-2.49** |
 
-*Keputusan dari pipeline: konsisten — tanda IC negatif di ketiga rezim.* Efeknya paling kuat pada periode terakhir, yang mana juga memiliki bukti statistik terkuat (n yang besar, |t-stat| terbesar).
+*Keputusan dari pipeline: konsisten - tanda IC negatif di ketiga rezim.* Efeknya paling kuat pada periode terakhir, yang mana juga memiliki bukti statistik terkuat (n yang besar, |t-stat| terbesar).
 
-**Narasi yang masuk akal, dengan asumsi longgar:** periode sampel ini didominasi oleh perpanjangan *bull market* yang dipimpin oleh pertumbuhan/teknologi, dan terutama oleh reli AI 2023–2026. Nama-nama *mega-cap growth* dan infrastruktur semikonduktor/AI — yang cenderung berjalan pada volatilitas yang direalisasikan lebih tinggi daripada sektor defensif seperti utilitas dan bahan pokok konsumen — memberikan pengembalian luar biasa selama jendela yang tepat ini. Sebuah strategi "long low-vol, short high-vol" berarti melakukan posisi *short* tepat pada saham-saham yang mendorong kenaikan pasar. Ini ditawarkan sebagai penjelasan logis yang spesifik untuk rezim ini, bukan klaim bahwa anomali *low-volatility* "mati" secara permanen — pada periode sampel yang berbeda, atau versi faktor yang menetralkan eksposur sektor dan beta, bisa saja menunjukkan gambaran yang berbeda.
+**Narasi yang masuk akal, dengan asumsi longgar:** periode sampel ini didominasi oleh perpanjangan *bull market* yang dipimpin oleh pertumbuhan/teknologi, dan terutama oleh reli AI 2023–2026. Nama-nama *mega-cap growth* dan infrastruktur semikonduktor/AI - yang cenderung berjalan pada volatilitas yang direalisasikan lebih tinggi daripada sektor defensif seperti utilitas dan bahan pokok konsumen - memberikan pengembalian luar biasa selama jendela yang tepat ini. Sebuah strategi "long low-vol, short high-vol" berarti melakukan posisi *short* tepat pada saham-saham yang mendorong kenaikan pasar. Ini ditawarkan sebagai penjelasan logis yang spesifik untuk rezim ini, bukan klaim bahwa anomali *low-volatility* "mati" secara permanen - pada periode sampel yang berbeda, atau versi faktor yang menetralkan eksposur sektor dan beta, bisa saja menunjukkan gambaran yang berbeda.
 
 ### 4.3 Perbandingan Berdampingan
 
@@ -163,9 +163,9 @@ Suatu faktor yang terlihat menarik di atas kertas bisa menjadi jauh kurang menar
 | Momentum | 22.0% | 0.044% | 0.130% | 0.086% | 33.8% |
 | Low-Vol | 21.5% | 0.043% | -1.418% | -1.461% | 3.0%\* |
 
-\*Untuk *low-vol*, biaya membuat pengembalian yang sudah negatif menjadi sedikit *lebih* negatif; angka "% hilang karena biaya" tidak memiliki arti yang sama seperti pada strategi yang menguntungkan — disertakan hanya untuk kelengkapan.
+\*Untuk *low-vol*, biaya membuat pengembalian yang sudah negatif menjadi sedikit *lebih* negatif; angka "% hilang karena biaya" tidak memiliki arti yang sama seperti pada strategi yang menguntungkan - disertakan hanya untuk kelengkapan.
 
-**Interpretasi:** *turnover* momentum (22% dari buku yang di-*rebalance* setiap bulan) cukup tinggi sehingga biaya transaksi mengikis sekitar sepertiga dari pengembalian kotor marjinal yang sudah tidak signifikan secara statistik — ini menegaskan bahwa faktor ini bukan strategi *standalone* yang layak pada sampel ini. Untuk *low-volatility*, biaya transaksi hanyalah pembulatan angka dibandingkan dengan besarnya kerugian; biaya bukanlah alasan mengapa faktor ini berkinerja buruk.
+**Interpretasi:** *turnover* momentum (22% dari buku yang di-*rebalance* setiap bulan) cukup tinggi sehingga biaya transaksi mengikis sekitar sepertiga dari pengembalian kotor marjinal yang sudah tidak signifikan secara statistik - ini menegaskan bahwa faktor ini bukan strategi *standalone* yang layak pada sampel ini. Untuk *low-volatility*, biaya transaksi hanyalah pembulatan angka dibandingkan dengan besarnya kerugian; biaya bukanlah alasan mengapa faktor ini berkinerja buruk.
 
 ---
 
@@ -183,7 +183,7 @@ Proyek ini adalah latihan yang cermat secara metodologis, tetapi bukanlah strate
 
 ## 7. Kesimpulan & Langkah Selanjutnya
 
-Proyek ini bertujuan untuk membangun *pipeline* riset faktor dengan ketelitian statistik yang diharapkan dalam *quantitative equity research*, bukan hanya sekadar membuat satu buah *backtest* yang dioptimalkan agar terlihat bagus. Hasil paling berharganya mungkin bukan pada angka akhir masing-masing faktor, melainkan proses yang didemonstrasikan: membangun faktor dengan benar, memvalidasi dengan IC dan portofolio *long-short* alih-alih mengandalkan nilai *return* mentah saja, memeriksa stabilitas sub-periode, memperhitungkan biaya — dan, di sepanjang jalan, menangkap serta mengoreksi bias sampel yang jika tidak, akan menghasilkan kesimpulan yang sangat menyesatkan.
+Proyek ini bertujuan untuk membangun *pipeline* riset faktor dengan ketelitian statistik yang diharapkan dalam *quantitative equity research*, bukan hanya sekadar membuat satu buah *backtest* yang dioptimalkan agar terlihat bagus. Hasil paling berharganya mungkin bukan pada angka akhir masing-masing faktor, melainkan proses yang didemonstrasikan: membangun faktor dengan benar, memvalidasi dengan IC dan portofolio *long-short* alih-alih mengandalkan nilai *return* mentah saja, memeriksa stabilitas sub-periode, memperhitungkan biaya - dan, di sepanjang jalan, menangkap serta mengoreksi bias sampel yang jika tidak, akan menghasilkan kesimpulan yang sangat menyesatkan.
 
 **Ekstensi alami yang dapat dilakukan:**
 
